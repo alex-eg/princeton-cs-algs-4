@@ -2,8 +2,9 @@ import edu.princeton.cs.algs4.Digraph;
 import edu.princeton.cs.algs4.In;
 import edu.princeton.cs.algs4.StdOut;
 import edu.princeton.cs.algs4.LinearProbingHashST;
+import edu.princeton.cs.algs4.SET;
+import edu.princeton.cs.algs4.RedBlackBST;
 import java.util.Arrays;
-import java.util.List;
 
 public class WordNet {
     // constructor takes the name of the two input files
@@ -13,12 +14,33 @@ public class WordNet {
         }
 
         var in = new In(synsets);
-        words = new LinearProbingHashST<Integer, String>();
+        int size = 0;
+        while (!in.isEmpty()) {
+            in.readLine();
+            size++;
+        }
+
+        allWords = new SET<String>();
+        words = new RedBlackBST<Integer, SET<String>>();
+        numWords = new RedBlackBST<String, SET<Integer>>();
+        in = new In(synsets);
         while (!in.isEmpty()) {
             var s = in.readLine();
             var strings = s.split(",");
             var key = Integer.parseInt(strings[0]);
-            words.put(key, strings[1]);
+            var syns = strings[1].split(" ");
+            var setS = new SET<String>();
+            words.put(key, setS);
+            for (var syn : syns) {
+                setS.add(syn);
+                allWords.add(syn);
+                var set = numWords.get(syn);
+                if (set == null) {
+                    set = new SET<Integer>();
+                    numWords.put(syn, set);
+                }
+                set.add(key);
+            }
         }
 
         graph = new Digraph(words.size());
@@ -32,19 +54,23 @@ public class WordNet {
                 graph.addEdge(key, hypernym);
             }
         }
+
+        sap = new SAP(graph);
     }
 
-    private LinearProbingHashST<Integer, String> words;
+    private RedBlackBST<Integer, SET<String>> words;
+    private RedBlackBST<String, SET<Integer>> numWords;
+    private SET<String> allWords;
     private Digraph graph;
+    private SAP sap;
 
     // returns all WordNet nouns
     public Iterable<String> nouns() {
-        var ret = new String[words.size()];
-        int i = 0;
-        for (var k : words.keys()) {
-            ret[i++] = words.get(k);
-        }
-        return Arrays.asList(ret);
+        return numWords.keys();
+    }
+
+    private SET<Integer> findWord(String word) {
+        return numWords.get(word);
     }
 
     // is the word a WordNet noun?
@@ -52,14 +78,7 @@ public class WordNet {
         if (word == null) {
             throw new IllegalArgumentException();
         }
-
-        for (var k : words.keys()) {
-            if (word.equals(words.get(k))) {
-                return true;
-            }
-        }
-
-        return false;
+        return allWords.contains(word);
     }
 
     // distance between nounA and nounB (defined below)
@@ -67,8 +86,13 @@ public class WordNet {
         if (nounA == null || nounB == null) {
             throw new IllegalArgumentException();
         }
+        var w1 = -1;
+        var w2 = -1;
+        if (!isNoun(nounA) || !isNoun(nounB)) {
+            throw new IllegalArgumentException();
+        }
 
-        return 0;
+        return sap.length(findWord(nounA), findWord(nounB));
     }
 
     // a synset (second field of synsets.txt) that is the common ancestor of nounA and nounB
@@ -77,11 +101,13 @@ public class WordNet {
         if (nounA == null || nounB == null) {
             throw new IllegalArgumentException();
         }
-
-        return "a";
+        var ca = sap.ancestor(findWord(nounA), findWord(nounB));
+        if (ca == -1) {
+            return "";
+        }
+        return String.join(" ", words.get(ca));
     }
 
-    // do unit testing of this class
     public static void main(String[] args) {
         var w = new WordNet("synsets.txt", "hypernyms.txt");
         StdOut.print("Nguni is noun: ");
