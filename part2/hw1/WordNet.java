@@ -4,6 +4,7 @@ import edu.princeton.cs.algs4.StdOut;
 import edu.princeton.cs.algs4.LinearProbingHashST;
 import edu.princeton.cs.algs4.SET;
 import edu.princeton.cs.algs4.RedBlackBST;
+import edu.princeton.cs.algs4.Topological;
 import java.util.Arrays;
 
 public class WordNet {
@@ -13,17 +14,10 @@ public class WordNet {
             throw new IllegalArgumentException();
         }
 
-        var in = new In(synsets);
-        int size = 0;
-        while (!in.isEmpty()) {
-            in.readLine();
-            size++;
-        }
-
         allWords = new SET<String>();
         words = new RedBlackBST<Integer, SET<String>>();
         numWords = new RedBlackBST<String, SET<Integer>>();
-        in = new In(synsets);
+        var in = new In(synsets);
         while (!in.isEmpty()) {
             var s = in.readLine();
             var strings = s.split(",");
@@ -54,7 +48,10 @@ public class WordNet {
                 graph.addEdge(key, hypernym);
             }
         }
-
+        var t = new Topological(graph);
+        if (!t.hasOrder()) {
+            throw new IllegalArgumentException();
+        }
         sap = new SAP(graph);
     }
 
@@ -86,6 +83,7 @@ public class WordNet {
         if (nounA == null || nounB == null) {
             throw new IllegalArgumentException();
         }
+
         var w1 = -1;
         var w2 = -1;
         if (!isNoun(nounA) || !isNoun(nounB)) {

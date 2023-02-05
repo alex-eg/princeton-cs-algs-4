@@ -1,6 +1,9 @@
 import edu.princeton.cs.algs4.Digraph;
 import edu.princeton.cs.algs4.StdOut;
-import edu.princeton.cs.algs4.BreadthFirstDirectedPaths;
+import edu.princeton.cs.algs4.Queue;
+import edu.princeton.cs.algs4.SET;
+import edu.princeton.cs.algs4.RedBlackBST;
+import java.util.Arrays;
 
 public class SAP {
     // constructor takes a digraph (not necessarily a DAG)
@@ -8,24 +11,158 @@ public class SAP {
         if (G == null) {
             throw new IllegalArgumentException();
         }
-        graph = G;
+        graph = new Digraph(G);
     }
 
     private Digraph graph;
 
-    private class LockstepBFS {
+    private static class LockstepSAP {
+        public LockstepSAP(Digraph g, Iterable<Integer> v, Iterable<Integer> w) {
+            var graph = g;
+            sap = -1;
+            length = Integer.MAX_VALUE;
 
+            // next search iteration
+            var qv = new Queue<Integer>();
+            var qw = new Queue<Integer>();
+
+            // visited verts
+            var sv = new RedBlackBST<Integer, Integer>();
+            var sw = new RedBlackBST<Integer, Integer>();
+
+            for (var iv : v) {
+                sv.put(iv, 0);
+                for (var a : graph.adj(iv)) {
+                    qv.enqueue(a);
+                }
+            }
+
+            for (var iw : w) {
+                // early check
+                if (sv.contains(iw)) {
+                    sap = iw;
+                    length = 0;
+                    return;
+                }
+
+                sw.put(iw, 0);
+                for (var a : graph.adj(iw)) {
+                    qw.enqueue(a);
+                }
+            }
+
+            //StdOut.println("-----Start ---------");
+            //StdOut.print("v: ");
+            //StdOut.print(v);
+            //StdOut.print(" adj(v): [");
+            //for (var a : graph.adj(v.iterator().next())) {
+            //    StdOut.print(a);
+            //    StdOut.print(", ");
+            //}
+            //StdOut.print("] w: ");
+            //StdOut.print(w);
+            //StdOut.print(" adj(w): [");
+            //for (var a : graph.adj(w.iterator().next())) {
+            //    StdOut.print(a);
+            //    StdOut.print(", ");
+            //}
+            //StdOut.println("]");
+            //StdOut.print("qv: ");
+            //StdOut.println(qv);
+            //StdOut.print("qw: ");
+            //StdOut.println(qw);
+            //StdOut.println();
+            //StdOut.println();
+
+            int lv = 0;
+            int lw = 0;
+            while (!qv.isEmpty() || !qw.isEmpty()) {
+                //StdOut.println("--------------------");
+                //StdOut.print("qv: ");
+                //StdOut.println(qv);
+                //StdOut.print("qw: ");
+                //StdOut.println(qw);
+
+                var qvn = qv;
+                if (!qv.isEmpty()) {
+                    qvn = new Queue<Integer>();
+                    lv++;
+                }
+                var qwn = qw;
+                if (!qw.isEmpty()) {
+                    qwn = new Queue<Integer>();
+                    lw++;
+                }
+                boolean found = false;
+                while (!qv.isEmpty()) {
+                    var iv = qv.dequeue();
+                    if (sw.contains(iv)) {
+                        var l = lv + sw.get(iv);
+                        if (l < length) {
+                            sap = iv;
+                            length = l;
+                            found = true;
+                        }
+                    }
+                    else if (!sw.contains(iv)) {
+                        for (var a : graph.adj(iv)) {
+                            qvn.enqueue(a);
+                        }
+                    }
+                    sv.put(iv, lv);
+                }
+                qv = qvn;
+
+                while (!qw.isEmpty()) {
+                    var iw = qw.dequeue();
+                    if (sv.contains(iw)) {
+                        var l = sv.get(iw) + lw;
+                        if (l < length) {
+                            sap = iw;
+                            length = l;
+                            found = true;
+                        }
+                    }
+                    else if (!sv.contains(iw)) {
+                        for (var a : graph.adj(iw)) {
+                            qwn.enqueue(a);
+                        }
+                    }
+                    sw.put(iw, lw);
+                }
+                qw = qwn;
+
+                if (found) {
+                    return;
+                }
+            }
+
+            if (sap == -1) {
+                length = -1;
+            }
+            //StdOut.print("sv: ");
+            //for (var k : sv.keys()) {
+            //    StdOut.print(k);
+            //    StdOut.print(" - ");
+            //    StdOut.println(sv.get(k));
+            //}
+            //
+            //StdOut.print("sw: ");
+            //for (var k : sw.keys()) {
+            //    StdOut.print(k);
+            //    StdOut.print(" - ");
+            //    StdOut.println(sw.get(k));
+            //}
+        }
+
+        public int sap;
+        public int length;
     }
 
     // length of shortest ancestral path between v and w; -1 if no such path
     public int length(int v, int w) {
         if (v > graph.V() - 1 || w > graph.V() - 1) {
             throw new IllegalArgumentException();
-        }
-
-        var a = ancestor(v, w);
-        if (a == -1) {
-            return -1;
         }
 
         //StdOut.print("Ancestor of ");
@@ -35,30 +172,8 @@ public class SAP {
         //StdOut.print(" is ");
         //StdOut.println(a);
 
-        var p = new BreadthFirstDirectedPaths(graph.reverse(), a);
-        int len = 0;
-        for (var q : p.pathTo(v)) {
-            len++;
-        }
-        for (var q : p.pathTo(w)) {
-            len++;
-        }
-
-        return len - 2;
-    }
-
-    private int root(int v) {
-        var i = graph.adj(v);
-        var prev = v;
-        while (i != null ) {
-            if (i.iterator().hasNext()) {
-                prev = i.iterator().next();
-            } else {
-                break;
-            }
-            i = graph.adj(prev);
-        }
-        return prev;
+        var p = new LockstepSAP(graph, Arrays.asList(v), Arrays.asList(w));
+        return p.length;
     }
 
     // a common ancestor of v and w that participates in a shortest ancestral path; -1 if no such path
@@ -71,81 +186,8 @@ public class SAP {
             return v;
         }
 
-        var rv = root(v);
-        if (rv != root(w)) {
-            // StdOut.print("Roots of ");
-            // StdOut.print(v);
-            // StdOut.print(" and ");
-            // StdOut.print(w);
-            // StdOut.println(" differ!");
-            return -1;
-        }
-
-        var d = new BreadthFirstDirectedPaths(graph.reverse(), rv);
-        var pathV = d.pathTo(v);
-        if (pathV == null) {
-            // StdOut.println("Path to v is null");
-            return -1;
-        }
-
-        var pathW = d.pathTo(w);
-        if (pathW == null) {
-            // StdOut.println("Path to w is null");
-            return -1;
-        }
-
-        var iv = pathV.iterator();
-        var iw = pathW.iterator();
-
-        /*
-        StdOut.print("Path from ");
-        StdOut.print(rv);
-        StdOut.print(" to ");
-        StdOut.print(v);
-        StdOut.print(": ");
-        while (iv.hasNext()) {
-            StdOut.print(iv.next());
-            StdOut.print("-");
-        }
-        StdOut.println("");
-
-        StdOut.print("Path from ");
-        StdOut.print(rv);
-        StdOut.print(" to ");
-        StdOut.print(w);
-        StdOut.print(": ");
-        while (iw.hasNext()) {
-            StdOut.print(iw.next());
-            StdOut.print("-");
-        }
-        StdOut.println("");
-        //*/
-
-        var p = -1;
-        iv = pathV.iterator();
-        iw = pathW.iterator();
-        while (iv.hasNext() && iw.hasNext()) {
-            var n1 = iv.next();
-            var n2 = iw.next();
-            if (n1.equals(n2) == false) {
-                //StdOut.print("n1 = ");
-                //StdOut.print(n1);
-                //StdOut.print(" n2 = ");
-                //StdOut.print(n2);
-                //StdOut.print(" n1.equals(n2)? ");
-                //StdOut.print(n1.equals(n2));
-                //StdOut.print(" n2.equals(n1)? ");
-                //StdOut.print(n2.equals(n1));
-                //StdOut.print(" shortest common ancestor: ");
-                //StdOut.println(p);
-                return p;
-            } else {
-                //StdOut.print("n1 == n2 == ");
-                //StdOut.println(n1);
-                p = n1;
-            }
-        }
-        return p;
+        var p = new LockstepSAP(graph, Arrays.asList(v), Arrays.asList(w));
+        return p.sap;
     }
 
     // length of shortest ancestral path between any vertex in v and any vertex in w; -1 if no such path
@@ -154,29 +196,8 @@ public class SAP {
             throw new IllegalArgumentException();
         }
 
-        int len = Integer.MAX_VALUE;
-        for (var i : w) {
-            if (i == null || i > graph.V() - 1) {
-                throw new IllegalArgumentException();
-            }
-
-            for (var j : v) {
-                if (j == null || j > graph.V() - 1) {
-                    throw new IllegalArgumentException();
-                }
-
-                var l = length(i, j);
-                if (l != -1 && l < len) {
-                    len = l;
-                }
-            }
-        }
-
-        if (len != Integer.MAX_VALUE) {
-            return len;
-        } else {
-            return -1;
-        }
+        var p = new LockstepSAP(graph, v, w);
+        return p.length;
     }
 
     // a common ancestor that participates in shortest ancestral path; -1 if no such path
@@ -185,40 +206,49 @@ public class SAP {
             throw new IllegalArgumentException();
         }
 
-        int anc = -1;
-        int len = Integer.MAX_VALUE;
-        for (var i : w) {
-            if (i == null || i > graph.V() - 1) {
-                throw new IllegalArgumentException();
-            }
-
-            for (var j : v) {
-                if (j == null || j > graph.V() - 1) {
-                    throw new IllegalArgumentException();
-                }
-
-                var l = length(i, j);
-                if (l != -1 && l < len) {
-                    len = l;
-                    anc = ancestor(i, j);
-                }
-            }
-        }
-
-        return anc;
+        var p = new LockstepSAP(graph, v, w);
+        return p.sap;
     }
 
     public static void main(String[] args) {
+        //Digraph g = new Digraph(6);
+        //g.addEdge(1, 0);
+        //g.addEdge(1, 2);
+        //g.addEdge(2, 3);
+        //g.addEdge(3, 4);
+        //g.addEdge(4, 5);
+        //g.addEdge(5, 0);
+
         Digraph g = new Digraph(10);
-        g.addEdge(0, 1);
         g.addEdge(1, 2);
+        g.addEdge(1, 7);
         g.addEdge(2, 3);
-        g.addEdge(2, 4);
-        g.addEdge(2, 5);
+        g.addEdge(3, 4);
+        g.addEdge(4, 5);
         g.addEdge(5, 6);
-        g.addEdge(0, 7);
+        g.addEdge(7, 8);
+        g.addEdge(9, 0);
+        g.addEdge(8, 6);
+        g.addEdge(0, 8);
 
         var s = new SAP(g);
+        StdOut.println("9 4: ");
+        StdOut.println(s.ancestor(9, 4));
+        StdOut.println(s.length(9, 4));
+        StdOut.println("1 4: ");
+        StdOut.println(s.ancestor(1, 4));
+        StdOut.println(s.length(1, 4));
+
+        g = new Digraph(10);
+        g.addEdge(1, 0);
+        g.addEdge(2, 1);
+        g.addEdge(3, 2);
+        g.addEdge(4, 2);
+        g.addEdge(5, 2);
+        g.addEdge(6, 5);
+        g.addEdge(7, 0);
+
+        s = new SAP(g);
         StdOut.print("3 5: ");
         StdOut.print(s.ancestor(3, 5));
         StdOut.print(" ");
