@@ -1,6 +1,8 @@
+import edu.princeton.cs.algs4.DirectedDFS;
 import edu.princeton.cs.algs4.Digraph;
 import edu.princeton.cs.algs4.In;
 import edu.princeton.cs.algs4.StdOut;
+import edu.princeton.cs.algs4.Topological;
 import edu.princeton.cs.algs4.LinearProbingHashST;
 import edu.princeton.cs.algs4.SET;
 import edu.princeton.cs.algs4.RedBlackBST;
@@ -47,8 +49,39 @@ public class WordNet {
                 graph.addEdge(key, hypernym);
             }
         }
-
+        checkGraph();
         sap = new SAP(graph);
+    }
+
+    private void checkGraph() {
+        // find root
+        int root = 0;
+        var visited = new SET<Integer>();
+        visited.add(root);
+        while (graph.adj(root).iterator().hasNext()) {
+            for (var a : graph.adj(root)) {
+                if (visited.contains(a)) {
+                    // cycle!
+                    throw new IllegalArgumentException();
+                }
+                root = a;
+                break;
+            }
+        }
+        var gr = graph.reverse();
+        var dfs = new DirectedDFS(gr, root);
+        for (var v = 0; v < gr.V(); v++) {
+            if (!dfs.marked(v)) {
+                // other roots!
+                throw new IllegalArgumentException();
+            }
+        }
+
+        var t = new Topological(graph);
+        if (!t.hasOrder()) {
+            // other roots!
+            throw new IllegalArgumentException();
+        }
     }
 
     private RedBlackBST<Integer, SET<String>> words;
