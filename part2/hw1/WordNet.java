@@ -4,7 +4,6 @@ import edu.princeton.cs.algs4.StdOut;
 import edu.princeton.cs.algs4.LinearProbingHashST;
 import edu.princeton.cs.algs4.SET;
 import edu.princeton.cs.algs4.RedBlackBST;
-import edu.princeton.cs.algs4.Topological;
 import java.util.Arrays;
 
 public class WordNet {
@@ -48,10 +47,7 @@ public class WordNet {
                 graph.addEdge(key, hypernym);
             }
         }
-        var t = new Topological(graph);
-        if (!t.hasOrder()) {
-            throw new IllegalArgumentException();
-        }
+
         sap = new SAP(graph);
     }
 
@@ -108,9 +104,8 @@ public class WordNet {
 
     public static void main(String[] args) {
         var w = new WordNet("synsets.txt", "hypernyms.txt");
-        StdOut.print("Nguni is noun: ");
-        StdOut.println(w.isNoun("Nguni"));
-        StdOut.print("Qadcdk is noun: ");
-        StdOut.println(w.isNoun("qadcdk"));
+        StdOut.print("Length between 12044 and 31625: ");
+        StdOut.println(w.distance("Norrish", "contemplation"));
+        StdOut.println(w.distance("contemplation", "Norrish"));
     }
 }
